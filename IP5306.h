@@ -4,22 +4,25 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define IP5306_I2C_ADDR 0xea
+#define IP5306_I2C_ADDR (0xea >> 1)
 
 #define IP5306_SYS_CTL0_BIT 00001
 #define IP5306_SYS_CTL1_BIT 00002
 #define IP5306_SYS_CTL2_BIT 00004
+#define IP5306_SYS_CTL_ALL_BITS 00007
 
 #define IP5306_CHARGER_CTL0_BIT 00010
 #define IP5306_CHARGER_CTL1_BIT 00020
 #define IP5306_CHARGER_CTL2_BIT 00040
 #define IP5306_CHARGER_CTL3_BIT 00100
 #define IP5306_CHG_DIG_CTL0_BIT 00200
+#define IP5306_CHARGER_CTL_ALL_BITS 00370
 
 #define IP5306_READ0_BIT 00400
 #define IP5306_READ1_BIT 01000
 #define IP5306_READ2_BIT 02000
 #define IP5306_READ3_BIT 04000
+#define IP5306_READ_ALL_BITS 07400
 
 enum IP5306_DisableBoostControl {
     IP5306_DisableBoostControl_LongPress = 1,
@@ -45,6 +48,7 @@ struct IP5306_SystemControl {
     bool autoPowerOn; // Automatic power-on function enabled when load is inserted; default 1
     bool outputNormallyOpen; // BOOST output normally open f unction; default 1
     bool keyShutdownEnable; // Key shutdown enable; default 0
+    uint8_t sysCtl0RegData; // Raw register data
 
     // SYS_CTL1
     enum IP5306_DisableBoostControl disableBoostControl; // Disable boost control signal selection; default 0
@@ -52,9 +56,11 @@ struct IP5306_SystemControl {
     bool shortPressSwitchBoostEnable; // Short press switch boost; default 0
     bool enableBoostAfterVINUnplug; // After VIN is unplugged, should Boost be enabled?; default 1
     bool batlow3V0ShutdownEnable; // Batlow 3.0V low power shutdown enable; default 1
+    uint8_t sysCtl1RegData; // Raw register data
 
     // SYS_CTL2
     enum IP5306_LightLoadShutdownTime lightLoadShutdownTime; // Light load shutdown time setting; default ??
+    uint8_t sysCtl2RegData; // Raw register data
 };
 
 // NOTE: Corresponding to charging cut-off voltage of 4.2V/4.3V/4.35V/4.4V respectively
@@ -117,36 +123,45 @@ enum IP5306_ChargingCurrentLoop {
 struct IP5306_ChargerControl {
     // CHARGER_CTL0
     enum IP5306_ChargerFullStop chargerFullStop; // Charging full stop setting; default 02
+    uint8_t chargerCtl0RegData; // Raw register data
 
     // CHARGER_CTL1
     enum IP5306_EndCurrentDetection endCurrentDetection; // Battery end charging current detection; default 01
     enum IP5306_ChargingUndervoltageLoop chargingUndervoltageLoop; // Charging undervoltage loop setting (the voltage at the output t erminal VOUT during charging); default 05
+    uint8_t chargerCtl1RegData; // Raw register data
 
     // CHARGER_CTL2
     enum IP5306_BatteryVoltage batteryVoltage; // Battery voltage setting; default 00
     enum IP5306_ConstantVoltageCharging constantVoltageCharging; // Constant voltage charging voltage boost setting; default 01
+    uint8_t chargerCtl2RegData; // Raw register data
 
     // CHARGER_CTL3
     enum IP5306_ChargingCurrentLoop chargingCurrentLoop; // Charging constant current loop selection; default 1
+    uint8_t chargerCtl3RegData; // Raw register data
 
     // CHG_DIG_CTL0
     int chargingCurrent; // Charger (VIN end) current setting (mA); default ??
+    uint8_t chgDigCtl0RegData; // Raw register data
 };
 
 struct IP5306_Status {
     // READ0
     bool chargingOn; // Charging enable flag
+    uint8_t read0RegData; // Raw register data
 
     // READ1
     bool fullyCharged; // Full flag
+    uint8_t read1RegData; // Raw register data
 
     // READ2
     bool lightLoad; // Output light load flag (Heavy load/Light load)
+    uint8_t read2RegData; // Raw register data
 
     // READ3
     bool doubleClick; // KEY button double click symbol, write 1 to clear
     bool longPress; // KEY button long press symbol, write 1 to clear
     bool shortPress; // KEY button short press symbol, write 1 to clear
+    uint8_t read3RegData; // Raw register data
 };
 
 struct IP5306_Platform {
@@ -158,14 +173,14 @@ struct IP5306_Platform {
 
 void IP5306_Init(struct IP5306_Platform *platform);
 
-bool IP5306_GetSystemControl(struct IP5306_SystemControl *systemControl, unsigned int regBits);
-bool IP5306_SetSystemControl(struct IP5306_SystemControl *systemControl, unsigned int regBits);
+bool IP5306_ReadSystemControl(struct IP5306_SystemControl *systemControl, unsigned int regBits);
+bool IP5306_WriteSystemControl(struct IP5306_SystemControl *systemControl, unsigned int regBits);
 
-bool IP5306_GetChargerControl(struct IP5306_ChargerControl *chargerControl, unsigned int regBits);
-bool IP5306_SetChargerControl(struct IP5306_ChargerControl *chargerControl, unsigned int regBits);
+bool IP5306_ReadChargerControl(struct IP5306_ChargerControl *chargerControl, unsigned int regBits);
+bool IP5306_WriteChargerControl(struct IP5306_ChargerControl *chargerControl, unsigned int regBits);
 
-bool IP5306_GetStatus(struct IP5306_Status *status, unsigned int regBits);
-bool IP5306_ClearButtonFlags(void);
+bool IP5306_ReadStatus(struct IP5306_Status *status, unsigned int regBits);
+bool IP5306_WriteStatus(struct IP5306_Status *status);
 
 
 #endif // IP5306_H
