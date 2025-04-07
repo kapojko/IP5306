@@ -11,7 +11,8 @@ extern "C" {
 
 
 /** The value corresponding to the bit.
- * @param n : bit index (from 0) */#define BITOPS_BIT(n) (1 << (n))
+ * @param n : bit index (from 0) */
+#define BITOPS_BIT(n) (1 << (n))
 
 /** The value corresponding to the bit (unsigned int).
  * @param n : bit index (from 0) */
