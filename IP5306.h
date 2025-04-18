@@ -24,6 +24,9 @@
 #define IP5306_READ3_BIT 04000
 #define IP5306_READ_ALL_BITS 07400
 
+// NOTE: datasheet says nothing but experiments show that during sleep, all registers are being read, but it always returns 0xeb
+#define IP5306_SLEEPING_ANY_REG_VALUE 0xeb
+
 enum IP5306_DisableBoostControl {
     IP5306_DisableBoostControl_LongPress = 1,
     IP5306_DisableBoostControl_ShortPressTwice = 0
@@ -118,6 +121,11 @@ enum IP5306_ChargingCurrentLoop {
     IP5306_ChargingCurrentLoop_BAT_CC = 0
 };
 
+enum IP5306_GpioMode {
+    IP5306_GpioMode_FloatingInput = 0,
+    IP5306_GpioMode_PushPullOutput = 1,
+};
+
 // Note: 4.30V/4.35V/4.4V recommends increasing voltage by 14mV;
 // 4.2V recommends adding 28mV;
 struct IP5306_ChargerControl {
@@ -164,23 +172,51 @@ struct IP5306_Status {
     uint8_t read3RegData; // Raw register data
 };
 
+enum IP5306_State {
+    IP5306_State_Unknown,
+    IP5306_State_Sleep,
+    IP5306_State_WakingUp,
+    IP5306_State_Working,
+    IP5306_State_ShuttingDown
+};
+
 struct IP5306_Platform {
     int (*i2cWriteReg)(uint8_t addr7bit, uint8_t regNum, const uint8_t *data, uint8_t length, uint8_t wait);
     int (*i2cReadReg)(uint8_t addr7bit, uint8_t regNum, uint8_t *data, uint8_t length, int timeout);
 
+    void (*setKeyGpioMode)(enum IP5306_GpioMode mode);
+    void (*setKeyGpioPin)(int value);
+
+    int (*getIrqGpioPin)(void); // IRQ must be in pull-down input mode
+
+    uint32_t (*getCycleTime)(void);
+    int32_t (*getTimeDiffMs)(uint32_t end, uint32_t start);
+
+    void (*delayMs)(int ms);
     void (*debugPrint)(const char *fmt, ...);
+
+    uint32_t invalidCycleTimeValue;
+    
+    enum IP5306_State state;
+    uint32_t lastStateChangeCycleTime;
 };
 
-void IP5306_Init(struct IP5306_Platform *platform);
+bool IP5306_Init(struct IP5306_Platform *platform);
+void IP5306_Step(struct IP5306_Platform *platform, uint32_t cycleTime);
 
-bool IP5306_ReadSystemControl(struct IP5306_SystemControl *systemControl, unsigned int regBits);
-bool IP5306_WriteSystemControl(struct IP5306_SystemControl *systemControl, unsigned int regBits);
+enum IP5306_State IP5306_GetState(struct IP5306_Platform *platform);
+bool IP5306_IsWorkingState(struct IP5306_Platform *platform);
+bool IP5306_WakeUp(struct IP5306_Platform *platform);
+bool IP5306_Shutdown(struct IP5306_Platform *platform);
 
-bool IP5306_ReadChargerControl(struct IP5306_ChargerControl *chargerControl, unsigned int regBits);
-bool IP5306_WriteChargerControl(struct IP5306_ChargerControl *chargerControl, unsigned int regBits);
+bool IP5306_ReadSystemControl(struct IP5306_Platform *platform, struct IP5306_SystemControl *systemControl, unsigned int regBits);
+bool IP5306_WriteSystemControl(struct IP5306_Platform *platform, struct IP5306_SystemControl *systemControl, unsigned int regBits);
 
-bool IP5306_ReadStatus(struct IP5306_Status *status, unsigned int regBits);
-bool IP5306_WriteStatus(struct IP5306_Status *status);
+bool IP5306_ReadChargerControl(struct IP5306_Platform *platform, struct IP5306_ChargerControl *chargerControl, unsigned int regBits);
+bool IP5306_WriteChargerControl(struct IP5306_Platform *platform, struct IP5306_ChargerControl *chargerControl, unsigned int regBits);
+
+bool IP5306_ReadStatus(struct IP5306_Platform *platform, struct IP5306_Status *status, unsigned int regBits);
+bool IP5306_WriteStatus(struct IP5306_Platform *platform, struct IP5306_Status *status);
 
 
 #endif // IP5306_H
